@@ -8,7 +8,7 @@ public class GameServer {
     // 포트는 충돌이 적은 5000번대로 변경
     private static final int PORT = 5555;
     
-    // ⭐ 다중 스레드 환경에서 절대 꼬이지 않는 안전한 리스트 사용
+    // 다중 스레드 환경에서 절대 꼬이지 않는 안전한 리스트 사용
     private List<ClientHandler> clients = new CopyOnWriteArrayList<>();
 
     public void start() {
@@ -34,7 +34,7 @@ public class GameServer {
         }
     }
 
-    // 2) ⭐ 보낸 사람 본인을 제외하고 전송 (그림 좌표용)
+    // 2) 보낸 사람 본인을 제외하고 전송 (그림 좌표용)
     public void broadcastExcept(ClientHandler sender, String message) {
         for (ClientHandler client : clients) {
             if (client != sender) {
