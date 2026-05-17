@@ -1,17 +1,13 @@
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import java.io.*;
 import java.net.Socket;
 
-// Thread로 동작하기 위해 Runnable 인터페이스 구현
 public class ClientHandler implements Runnable {
     private Socket socket;
     private GameServer server;
     private PrintWriter out;
     private BufferedReader in;
+    private String nickname; // 유저 닉네임 추가
 
-    // 생성자를 통해 할당받은 유저의 소켓과 서버 객체를 저장
     public ClientHandler(Socket socket, GameServer server) {
         this.socket = socket;
         this.server = server;
@@ -20,35 +16,55 @@ public class ClientHandler implements Runnable {
     @Override
     public void run() {
         try {
-            // 유저에게 데이터를 보낼 통로(out)와 받을 통로(in) 생성
             out = new PrintWriter(socket.getOutputStream(), true);
             in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
             String inputLine;
-            // 유저가 데이터를 보내면 실시간으로 계속 읽어들임
             while ((inputLine = in.readLine()) != null) {
-                // 받은 데이터를 서버에 넘겨서 모든 사람에게 방송(Broadcast)하도록 지시
-                // 예: "[DRAW]100,200,BLACK" 또는 "[CHAT]정답은 사과!"
-                System.out.println("수신된 데이터: " + inputLine);
-                server.broadcast(inputLine); 
+                // ⭐ 프로토콜 파싱: "명령어|데이터" 구조
+                String[] parts = inputLine.split("\\|");
+                String command = parts[0];
+
+                switch (command) {
+                    case "LOGIN":
+                        // 예: "LOGIN|정통공학도"
+                        this.nickname = parts[1];
+                        server.broadcast("SYS|" + nickname + "님이 게임에 참여했습니다!");
+                        break;
+
+                    case "CHAT":
+                        // 예: "CHAT|사과"
+                        String chatMsg = parts[1];
+                        server.broadcast("CHAT|" + nickname + "|" + chatMsg);
+                        break;
+
+                    case "DRAW":
+                        // 예: "DRAW|100,200,BLACK"
+                        String drawData = parts[1];
+                        // 그림 좌표는 렉을 줄이기 위해 본인 제외 나머지에게만 전송!
+                        server.broadcastExcept(this, "DRAW|" + drawData);
+                        break;
+                }
             }
         } catch (IOException e) {
-            System.out.println("클라이언트 연결 끊김.");
+            System.out.println((nickname != null ? nickname : "알 수 없는 유저") + " 연결 끊김.");
         } finally {
-            // 접속이 끊기면 자원 정리 및 서버 목록에서 제거
+            // ⭐ 연결 종료 시 확실하게 자원 닫기 (메모리 누수 방지)
+            if (nickname != null) {
+                server.broadcast("SYS|" + nickname + "님이 도망갔습니다!");
+            }
             server.removeClient(this);
             try {
-                socket.close();
+                if (in != null) in.close();
+                if (out != null) out.close();
+                if (socket != null) socket.close();
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
     }
 
-    // 서버가 Broadcast할 때 이 메서드를 호출하여 유저에게 실제로 데이터를 쏨
     public void sendMessage(String message) {
-        if (out != null) {
-            out.println(message);
-        }
+        if (out != null) out.println(message);
     }
 }
