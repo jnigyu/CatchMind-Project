@@ -1,8 +1,23 @@
-import java.io.IOException;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.util.List;
+import java.io.IOException; 
+// 입출력(Input/Output) 과정에서 발생할 수 있는 예외(오류)를 처리하기 위한 클래스
+// 예: 소켓 연결이 끊기거나, 데이터를 읽고 쓰는 도중 문제가 생길 때 발생
+
+import java.net.ServerSocket; 
+// 서버 프로그램에서 클라이언트의 접속 요청을 기다리는 "서버용 소켓" 클래스
+// 특정 포트(PORT)를 열고, 클라이언트가 접속하면 accept()로 연결을 받아줌
+
+import java.net.Socket; 
+// 서버와 클라이언트가 실제로 통신(데이터 송수신)할 때 사용하는 소켓 클래스
+// accept()를 통해 클라이언트와 연결된 Socket 객체가 생성됨
+
+import java.util.List; 
+// 여러 개의 ClientHandler(접속한 사용자)를 저장하기 위한 리스트(List) 자료구조 인터페이스
+// 배열처럼 여러 데이터를 순서대로 저장하고 관리할 때 사용
+
 import java.util.concurrent.CopyOnWriteArrayList;
+// 멀티스레드 환경에서도 안전하게 사용할 수 있는 List 구현 클래스
+// 여러 스레드가 동시에 clients 리스트에 접근해도 오류가 잘 발생하지 않도록 해줌
+// (동기화 문제를 줄여주는 스레드 안전(Thread-Safe) 리스트)
 
 public class GameServer {
     // 1. 서버가 귀를 열고 기다릴 포트 번호를 5555로 고정합니다.
