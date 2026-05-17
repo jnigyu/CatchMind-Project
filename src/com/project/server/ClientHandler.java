@@ -50,7 +50,7 @@ public class ClientHandler implements Runnable {
         } catch (IOException e) {
             System.out.println((nickname != null ? nickname : "알 수 없는 유저") + " 연결 끊김.");
         } finally {
-            // ⭐ 연결 종료 시 확실하게 자원 닫기 (메모리 누수 방지)
+            // 연결 종료 시 확실하게 자원 닫기 (메모리 누수 방지)
             if (nickname != null) {
                 server.broadcast("SYS|" + nickname + "님이 도망갔습니다!");
             }
