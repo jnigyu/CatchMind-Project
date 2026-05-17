@@ -22,7 +22,7 @@ public class ClientHandler implements Runnable {
 
             String inputLine;
             while ((inputLine = in.readLine()) != null) {
-                // ⭐ 프로토콜 파싱: "명령어|데이터" 구조
+                // 프로토콜 파싱: "명령어|데이터" 구조
                 String[] parts = inputLine.split("\\|");
                 String command = parts[0];
 
