@@ -1,11 +1,11 @@
-package com.project.server; // 패키지 경로 삽입 완료
+package com.project.server;
 
 import java.io.*;
 import java.net.Socket;
 
 public class ClientHandler implements Runnable {
     private Socket socket;       
-    private ServerMain server;   // GameServer 대신 ServerMain으로 이름 변경
+    private ServerMain server;   
     private PrintWriter out;     
     private BufferedReader in;   
     private String nickname;     
@@ -23,7 +23,6 @@ public class ClientHandler implements Runnable {
 
             String inputLine;
             while ((inputLine = in.readLine()) != null) {
-                // 약속했던 규약대로 쉼표(,)를 기준으로 쪼갭니다!
                 String[] parts = inputLine.split(","); 
                 String command = parts[0]; 
 
@@ -32,14 +31,27 @@ public class ClientHandler implements Runnable {
                         this.nickname = parts[1]; 
                         server.broadcast("[SYSTEM]," + nickname + "님이 접속했습니다!");
                         break;
+                        
                     case "[CHAT]": 
                         String chatMsg = parts[1]; 
-                        server.broadcast("[CHAT]," + nickname + " : " + chatMsg);
+                        // 정답 확인 로직
+                        if (chatMsg.trim().equals(server.currentAnswer)) {
+                            server.broadcast("[SYSTEM],🎉 대박! [" + nickname + "] 님이 정답을 맞췄습니다! (정답: " + server.currentAnswer + ")");
+                            server.setRandomAnswer(); // 정답 맞추면 다음 문제 출제!
+                            server.broadcast("[SYSTEM],다음 문제가 출제되었습니다. 그림을 그려주세요!");
+                            server.broadcast("[CLEAR]"); 
+                        } else {
+                            server.broadcast("[CHAT]," + nickname + " : " + chatMsg);
+                        }
                         break;
+                        
                     case "[DRAW]": 
-                        // 예: [DRAW],100,150,102,155,RED -> 1번 인덱스부터 끝까지가 좌표 데이터
-                        String drawData = inputLine.substring(7); // "[DRAW]," 뒷부분만 잘라냄
+                        String drawData = inputLine.substring(7); 
                         server.broadcastExcept(this, "[DRAW]," + drawData);
+                        break;
+                        
+                    case "[CLEAR]":
+                        server.broadcast("[CLEAR]");
                         break;
                 }
             }

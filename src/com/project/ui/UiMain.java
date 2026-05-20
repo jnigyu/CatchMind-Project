@@ -1,6 +1,13 @@
 package com.project.ui;
 
+import java.awt.BasicStroke;
 import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.image.BufferedImage; // 💡 가상 도화지 클래스 수입
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
@@ -11,59 +18,154 @@ import javax.swing.JTextField;
 import com.project.client.ClientMain;
 
 public class UiMain {
-    private JTextArea chatArea; // 글자가 쌓이는 큰 채팅창
-    private ClientMain client;  // 네트워크 담당자
+    private JTextArea chatArea;
+    private JPanel canvasPanel; 
+    private ClientMain client;
+    
+    private int lastX, lastY; 
+    private String currentColor = "BLACK"; 
+    
+    // 💡 화면 뒤에 숨겨진 찐짜 '순백색 가상 도화지' 변수
+    private BufferedImage canvasImage; 
 
     public UiMain() {
-        // UI가 만들어질 때 네트워크 담당자(ClientMain)도 같이 고용합니다.
         client = new ClientMain(this); 
         createAndShowGUI();
     }
 
     private void createAndShowGUI() {
-        JFrame frame = new JFrame("캐치마인드 채팅 테스트");
-        frame.setSize(400, 500);
+        JFrame frame = new JFrame("실시간 캐치마인드");
+        frame.setSize(900, 600); 
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setLayout(new BorderLayout());
 
-        // 1. 채팅이 쌓이는 영역 설정
+        // 💡 1. 2000x2000 짜리 거대한 가상 도화지를 만들고 순백색으로 쫙 칠해둡니다.
+        canvasImage = new BufferedImage(2000, 2000, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g2d = canvasImage.createGraphics();
+        g2d.setColor(Color.WHITE);
+        g2d.fillRect(0, 0, 2000, 2000);
+        g2d.dispose();
+
+        // 💡 2. 화면 패널은 가상 도화지(canvasImage)를 그대로 복사해서 보여주기만 합니다.
+        canvasPanel = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g); // 회색 찌꺼기 방지
+                g.drawImage(canvasImage, 0, 0, null); // 가상 도화지 출력
+            }
+        };
+        
+        canvasPanel.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                lastX = e.getX();
+                lastY = e.getY();
+            }
+        });
+
+        canvasPanel.addMouseMotionListener(new MouseAdapter() {
+            @Override
+            public void mouseDragged(MouseEvent e) {
+                int currentX = e.getX();
+                int currentY = e.getY();
+
+                drawRemoteLine(lastX, lastY, currentX, currentY, currentColor);
+                client.sendMessage("[DRAW]," + lastX + "," + lastY + "," + currentX + "," + currentY + "," + currentColor);
+
+                lastX = currentX;
+                lastY = currentY;
+            }
+        });
+        frame.add(canvasPanel, BorderLayout.CENTER);
+
+        JPanel rightPanel = new JPanel(new BorderLayout());
+        rightPanel.setSize(300, 600);
+        
         chatArea = new JTextArea();
-        chatArea.setEditable(false); // 채팅창은 읽기 전용
-        frame.add(new JScrollPane(chatArea), BorderLayout.CENTER);
+        chatArea.setEditable(false);
+        rightPanel.add(new JScrollPane(chatArea), BorderLayout.CENTER);
 
-        // 2. 하단 입력 영역 (닉네임/채팅 입력칸 + 버튼)
         JPanel bottomPanel = new JPanel();
-        JTextField inputField = new JTextField(20);
-        JButton actionBtn = new JButton("접속 (닉네임입력)");
+        JTextField inputField = new JTextField(8);
+        JButton actionBtn = new JButton("접속");
+        
+        JButton blackBtn = new JButton("검");
+        JButton redBtn = new JButton("빨");
+        JButton blueBtn = new JButton("파");
+        JButton eraserBtn = new JButton("지우개"); 
+        JButton clearBtn = new JButton("전체지움");
 
-        bottomPanel.add(inputField);
-        bottomPanel.add(actionBtn);
-        frame.add(bottomPanel, BorderLayout.SOUTH);
+        blackBtn.addActionListener(e -> currentColor = "BLACK");
+        redBtn.addActionListener(e -> currentColor = "RED");
+        blueBtn.addActionListener(e -> currentColor = "BLUE");
+        eraserBtn.addActionListener(e -> currentColor = "WHITE"); 
+        
+        clearBtn.addActionListener(e -> client.sendMessage("[CLEAR]"));
 
-        // 3. 버튼 클릭 이벤트 (처음엔 접속, 그 다음부턴 채팅)
         actionBtn.addActionListener(e -> {
             String text = inputField.getText();
             if (text.isEmpty()) return;
 
-            if (actionBtn.getText().startsWith("접속")) {
-                // 버튼이 '접속' 상태일 때는 서버로 연결!
+            if (actionBtn.getText().equals("접속")) {
                 client.connect("127.0.0.1", 8000, text);
-                actionBtn.setText("전송"); // 버튼 이름을 전송으로 바꿈
+                actionBtn.setText("전송");
                 inputField.setText("");
             } else {
-                // 버튼이 '전송' 상태일 때는 채팅 메시지 발사!
                 client.sendMessage("[CHAT]," + text);
                 inputField.setText("");
             }
         });
 
+        bottomPanel.add(inputField);
+        bottomPanel.add(actionBtn);
+        bottomPanel.add(blackBtn);
+        bottomPanel.add(redBtn);
+        bottomPanel.add(blueBtn);
+        bottomPanel.add(eraserBtn);
+        bottomPanel.add(clearBtn);
+        
+        rightPanel.add(bottomPanel, BorderLayout.SOUTH);
+        frame.add(rightPanel, BorderLayout.EAST); 
+
         frame.setVisible(true);
     }
 
-    // 네트워크 담당자(ClientMain)가 채팅을 받았을 때 화면에 띄워주는 기능
+    // 💡 선 긋기 메서드 진화: 화면이 아니라 가상 도화지에 그립니다.
+    public void drawRemoteLine(int x1, int y1, int x2, int y2, String colorName) {
+        Graphics2D g2d = canvasImage.createGraphics();
+        
+        if (colorName.equals("RED")) {
+            g2d.setColor(Color.RED);
+            g2d.setStroke(new BasicStroke(3)); 
+        } else if (colorName.equals("BLUE")) {
+            g2d.setColor(Color.BLUE);
+            g2d.setStroke(new BasicStroke(3));
+        } else if (colorName.equals("WHITE")) {
+            g2d.setColor(Color.WHITE);
+            g2d.setStroke(new BasicStroke(20)); // 지우개는 아주 두껍게!
+        } else {
+            g2d.setColor(Color.BLACK);
+            g2d.setStroke(new BasicStroke(3));
+        }
+        
+        g2d.drawLine(x1, y1, x2, y2); 
+        g2d.dispose(); 
+        
+        canvasPanel.repaint(); // 도화지에 그렸으니 화면을 새로고침!
+    }
+
+    // 💡 지우기 메서드 진화: 가상 도화지를 순백색으로 덮어버립니다.
+    public void clearCanvas() {
+        Graphics2D g2d = canvasImage.createGraphics();
+        g2d.setColor(Color.WHITE); 
+        g2d.fillRect(0, 0, canvasImage.getWidth(), canvasImage.getHeight()); 
+        g2d.dispose();
+        
+        canvasPanel.repaint(); // 도화지 지웠으니 화면 새로고침!
+    }
+
     public void appendChat(String message) {
         chatArea.append(message + "\n");
-        // 스크롤을 항상 맨 아래로 유지
         chatArea.setCaretPosition(chatArea.getDocument().getLength()); 
     }
 
