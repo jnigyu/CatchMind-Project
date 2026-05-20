@@ -57,6 +57,24 @@ public class ClientMain {
                     
                 } else if (command.equals("[CLEAR]")) {
                     ui.clearCanvas();
+                    
+                } else if (command.equals("[ALL_READY]")) {
+                    ui.changeToStartButton(); // 💡 모두 준비 완료 시 시작 버튼으로 변경 명령
+                    
+                } else if (command.equals("[NOT_READY]")) {
+                    ui.changeToReadyButton(); // 💡 한 명이라도 해제 시 다시 준비 버튼으로 변경 명령
+                    
+                } else if (command.equals("[RESET_READY]")) {
+                    ui.resetReadyState();     // 💡 게임 종료 후 버튼 리셋 명령
+                    
+                } else if (command.equals("[GAME_START]")) {
+                    // 💡 역할 배정 처리
+                    String role = parts[1];
+                    if (role.equals("DRAWER")) {
+                        ui.setGameRole(true, "★내가 출제자★ 제시어: " + parts[2]);
+                    } else {
+                        ui.setGameRole(false, "출제자: " + parts[2] + "님 (정답을 맞추세요!)");
+                    }
                 }
             }
         } catch (Exception e) {

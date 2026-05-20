@@ -9,11 +9,16 @@ public class ClientHandler implements Runnable {
     private PrintWriter out;     
     private BufferedReader in;   
     private String nickname;     
+    private boolean isReady = false; // 💡 개별 유저의 준비 상태
 
     public ClientHandler(Socket socket, ServerMain server) {
         this.socket = socket;
         this.server = server;
     }
+
+    public boolean isReady() { return isReady; }
+    public void setReady(boolean ready) { this.isReady = ready; }
+    public String getNickname() { return nickname; }
 
     @Override
     public void run() {
@@ -30,15 +35,27 @@ public class ClientHandler implements Runnable {
                     case "[JOIN]": 
                         this.nickname = parts[1]; 
                         server.broadcast("[SYSTEM]," + nickname + "님이 접속했습니다!");
+                        server.checkAllReady(); 
+                        break;
+                        
+                    case "[READY]": // 💡 준비 토글 신호 처리
+                        this.isReady = Boolean.parseBoolean(parts[1]);
+                        server.broadcast("[SYSTEM]," + nickname + "님이 " + (isReady ? "준비 완료!" : "준비를 취소했습니다."));
+                        server.checkAllReady(); 
+                        break;
+
+                    case "[START]": // 💡 시작 신호 처리
+                        server.broadcast("[SYSTEM],게임을 시작합니다!");
+                        server.startGame();
                         break;
                         
                     case "[CHAT]": 
                         String chatMsg = parts[1]; 
-                        // 정답 확인 로직
-                        if (chatMsg.trim().equals(server.currentAnswer)) {
+                        // 게임 진행 중에만 정답 판별 작동
+                        if (server.isGameStarted && chatMsg.trim().equals(server.currentAnswer)) {
                             server.broadcast("[SYSTEM],🎉 대박! [" + nickname + "] 님이 정답을 맞췄습니다! (정답: " + server.currentAnswer + ")");
-                            server.setRandomAnswer(); // 정답 맞추면 다음 문제 출제!
-                            server.broadcast("[SYSTEM],다음 문제가 출제되었습니다. 그림을 그려주세요!");
+                            server.isGameStarted = false; 
+                            server.resetReadyStatus(); // 정답 맞추면 모두 준비 해제 및 대기 상태로 변경
                             server.broadcast("[CLEAR]"); 
                         } else {
                             server.broadcast("[CHAT]," + nickname + " : " + chatMsg);
