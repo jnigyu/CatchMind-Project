@@ -251,7 +251,7 @@ public class UiMain {
     public void showFinalScoreDialog(String winner, String rankings) {
         timerLabel.setText("게임 종료 🏁");
         JOptionPane.showMessageDialog(frame, 
-            "🏆 최종 우승자: [" + winner + "] 님!! 🏆\n\n📊 [최종 등수 라열]\n" + rankings, 
+            "🏆 최종 우승자: [" + winner + "] 님!! 🏆\n\n📊 [최종 등수 나열]\n" + rankings, 
             "게임 결과 발표", 
             JOptionPane.INFORMATION_MESSAGE);
         resetReadyState();
