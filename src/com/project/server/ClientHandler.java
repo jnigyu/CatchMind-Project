@@ -9,7 +9,11 @@ public class ClientHandler implements Runnable {
     private PrintWriter out;     
     private BufferedReader in;   
     private String nickname;     
-    private boolean isReady = false; // 💡 개별 유저의 준비 상태
+    private boolean isReady = false; 
+    private int score = 0; 
+    
+    // 💡 출제자 여부를 기억하는 변수
+    private boolean isDrawer = false; 
 
     public ClientHandler(Socket socket, ServerMain server) {
         this.socket = socket;
@@ -19,6 +23,11 @@ public class ClientHandler implements Runnable {
     public boolean isReady() { return isReady; }
     public void setReady(boolean ready) { this.isReady = ready; }
     public String getNickname() { return nickname; }
+    public int getScore() { return score; }
+    public void setScore(int score) { this.score = score; }
+    
+    // 💡 출제자 권한 세팅 메서드
+    public void setDrawer(boolean drawer) { this.isDrawer = drawer; }
 
     @Override
     public void run() {
@@ -38,25 +47,40 @@ public class ClientHandler implements Runnable {
                         server.checkAllReady(); 
                         break;
                         
-                    case "[READY]": // 💡 준비 토글 신호 처리
+                    case "[READY]": 
                         this.isReady = Boolean.parseBoolean(parts[1]);
                         server.broadcast("[SYSTEM]," + nickname + "님이 " + (isReady ? "준비 완료!" : "준비를 취소했습니다."));
                         server.checkAllReady(); 
                         break;
 
-                    case "[START]": // 💡 시작 신호 처리
+                    case "[START]": 
                         server.broadcast("[SYSTEM],게임을 시작합니다!");
                         server.startGame();
                         break;
                         
                     case "[CHAT]": 
+                        // 💡 보안 로직: 만약 이 채팅을 보낸 사람이 출제자라면 무시하고 경고만 줌
+                        if (this.isDrawer) {
+                            sendMessage("[SYSTEM],🚫 출제자는 그림으로만 설명해야 합니다! (채팅 금지)");
+                            break; 
+                        }
+                        
                         String chatMsg = parts[1]; 
-                        // 게임 진행 중에만 정답 판별 작동
                         if (server.isGameStarted && chatMsg.trim().equals(server.currentAnswer)) {
-                            server.broadcast("[SYSTEM],🎉 대박! [" + nickname + "] 님이 정답을 맞췄습니다! (정답: " + server.currentAnswer + ")");
-                            server.isGameStarted = false; 
-                            server.resetReadyStatus(); // 정답 맞추면 모두 준비 해제 및 대기 상태로 변경
-                            server.broadcast("[CLEAR]"); 
+                            server.stopTimer(); 
+                            this.score++; 
+                            
+                            server.broadcast("[SYSTEM],🎉 정답! [" + nickname + "] 님이 맞췄습니다. (정답: " + server.currentAnswer + " | 점수: " + this.score + "점)");
+                            
+                            if (this.score >= 3) {
+                                String finalRank = server.getRankings(); 
+                                server.broadcast("[SYSTEM],🏆🏆 [ " + nickname + " ] 님이 3점을 먼저 획득하여 최종 승리자가 되었습니다! 🏆🏆");
+                                server.broadcast("[GAME_OVER]," + nickname + "," + finalRank); 
+                                server.resetGameFull(); 
+                            } else {
+                                server.startGame(); // 다음 문제 및 새로운 출제자/타이머 재가동
+                                server.broadcast("[CLEAR]"); 
+                            }
                         } else {
                             server.broadcast("[CHAT]," + nickname + " : " + chatMsg);
                         }
@@ -73,8 +97,8 @@ public class ClientHandler implements Runnable {
                 }
             }
         } catch (IOException e) {
-            System.out.println((nickname != null ? nickname : "알 수 없는 유저") + " 연결 끊김.");
         } finally {
+            System.out.println("❌ [퇴장] 사람이 서버에서 나갔습니다. (닉네임: " + (nickname != null ? nickname : "익명") + ")");
             if (nickname != null) {
                 server.broadcast("[SYSTEM]," + nickname + "님이 퇴장했습니다!");
             }

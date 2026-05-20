@@ -3,6 +3,7 @@ package com.project.server;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -13,7 +14,8 @@ public class ServerMain {
     
     private String[] wordList = {"자전거", "사과", "노트북", "강아지", "기말고사", "교수님", "에이플러스", "커피", "와이파이", "키보드"};
     public String currentAnswer; 
-    public boolean isGameStarted = false; // 게임이 진행 중인지 여부
+    public boolean isGameStarted = false; 
+    private Thread timerThread; 
 
     public void setRandomAnswer() {
         Random rand = new Random();
@@ -29,6 +31,8 @@ public class ServerMain {
 
             while (true) {
                 Socket clientSocket = serverSocket.accept();
+                System.out.println("💡 [접속] 새로운 사람이 서버에 접속했습니다. (IP: " + clientSocket.getInetAddress() + ")");
+                
                 ClientHandler handler = new ClientHandler(clientSocket, this);
                 clients.add(handler); 
                 new Thread(handler).start();
@@ -38,52 +42,92 @@ public class ServerMain {
         }
     }
 
-    // 💡 모든 접속자가 준비 버튼을 눌렀는지 검사하는 기능
     public void checkAllReady() {
         if (clients.isEmpty()) return;
 
-        boolean allReady = true;
+        int readyCount = 0;
+        int totalCount = clients.size();
         for (ClientHandler client : clients) {
-            if (!client.isReady()) {
-                allReady = false;
-                break;
-            }
+            if (client.isReady()) readyCount++;
         }
 
-        // 모두 준비되었다면 시작 버튼으로 바꾸라고 신호를 보냄
-        if (allReady) {
+        broadcast("[READY_COUNT]," + readyCount + "," + totalCount);
+
+        if (readyCount == totalCount && totalCount > 0) {
             broadcast("[ALL_READY]");
         } else {
             broadcast("[NOT_READY]");
         }
     }
 
-    // 💡 게임 시작 로직 (랜덤 출제자 선정 및 권한 부여)
     public void startGame() {
         if (clients.isEmpty()) return;
         isGameStarted = true;
-        setRandomAnswer(); // 새 문제 출제
+        setRandomAnswer(); 
 
         Random rand = new Random();
-        int drawerIndex = rand.nextInt(clients.size()); // 랜덤으로 출제자 인덱스 선택
+        int drawerIndex = rand.nextInt(clients.size()); 
 
         for (int i = 0; i < clients.size(); i++) {
             ClientHandler client = clients.get(i);
             if (i == drawerIndex) {
-                // 출제자에게 전송 (역할, 제시어, 본인닉네임)
+                // 💡 서버 측 권한 부여: 출제자는 true
+                client.setDrawer(true); 
                 client.sendMessage("[GAME_START],DRAWER," + currentAnswer + "," + client.getNickname());
             } else {
-                // 구경꾼들에게 전송 (역할, 출제자닉네임)
+                // 💡 서버 측 권한 회수: 구경꾼은 false
+                client.setDrawer(false); 
                 client.sendMessage("[GAME_START],VIEWER," + clients.get(drawerIndex).getNickname());
             }
         }
+        
+        startTimer(); 
     }
 
-    // 💡 게임이 끝나면 모든 유저의 준비 상태를 초기화
-    public void resetReadyStatus() {
+    public void startTimer() {
+        stopTimer(); 
+        timerThread = new Thread(() -> {
+            try {
+                for (int i = 60; i >= 0; i--) {
+                    broadcast("[TIMER]," + i); 
+                    Thread.sleep(1000);
+                }
+                broadcast("[SYSTEM],⏰ 시간 초과! 문제 풀이에 실패했습니다. (정답은 [" + currentAnswer + "]였습니다.)");
+                broadcast("[CLEAR]");
+                resetGameFull(); 
+            } catch (InterruptedException e) {}
+        });
+        timerThread.start();
+    }
+
+    public void stopTimer() {
+        if (timerThread != null && timerThread.isAlive()) {
+            timerThread.interrupt();
+        }
+    }
+
+    public String getRankings() {
+        List<ClientHandler> sorted = new ArrayList<>(clients);
+        sorted.sort((c1, c2) -> Integer.compare(c2.getScore(), c1.getScore()));
+
+        StringBuilder sb = new StringBuilder();
+        int rank = 1;
+        for (ClientHandler c : sorted) {
+            sb.append(rank).append("등: ").append(c.getNickname()).append("(").append(c.getScore()).append("점)  ");
+            rank++;
+        }
+        return sb.toString();
+    }
+
+    public void resetGameFull() {
+        stopTimer();
+        isGameStarted = false;
         for (ClientHandler client : clients) {
             client.setReady(false);
+            client.setScore(0); 
+            client.setDrawer(false); // 💡 게임이 끝나면 모두 출제자 권한 박탈 (채팅 허용)
         }
+        checkAllReady();
         broadcast("[RESET_READY]");
     }
 
@@ -103,7 +147,6 @@ public class ServerMain {
 
     public void removeClient(ClientHandler client) {
         clients.remove(client);
-        System.out.println("유저 퇴장. 현재 인원: " + clients.size() + "명");
         checkAllReady(); 
     }
 

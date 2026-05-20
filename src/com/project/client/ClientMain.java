@@ -53,28 +53,38 @@ public class ClientMain {
                     int x2 = Integer.parseInt(parts[3]);
                     int y2 = Integer.parseInt(parts[4]);
                     String color = parts[5];
-                    ui.drawRemoteLine(x1, y1, x2, y2, color);
+                    // 💡 6번째 데이터인 두께(Thickness) 파싱 추가
+                    int thickness = Integer.parseInt(parts[6]); 
+                    ui.drawRemoteLine(x1, y1, x2, y2, color, thickness);
                     
                 } else if (command.equals("[CLEAR]")) {
                     ui.clearCanvas();
                     
+                } else if (command.equals("[READY_COUNT]")) {
+                    ui.updateReadyButtonText(Integer.parseInt(parts[1]), Integer.parseInt(parts[2]));
+                    
                 } else if (command.equals("[ALL_READY]")) {
-                    ui.changeToStartButton(); // 💡 모두 준비 완료 시 시작 버튼으로 변경 명령
+                    ui.changeToStartButton(); 
                     
                 } else if (command.equals("[NOT_READY]")) {
-                    ui.changeToReadyButton(); // 💡 한 명이라도 해제 시 다시 준비 버튼으로 변경 명령
                     
                 } else if (command.equals("[RESET_READY]")) {
-                    ui.resetReadyState();     // 💡 게임 종료 후 버튼 리셋 명령
+                    ui.resetReadyState();     
+                    
+                } else if (command.equals("[TIMER]")) {
+                    ui.updateTimerLabel(parts[1]);
                     
                 } else if (command.equals("[GAME_START]")) {
-                    // 💡 역할 배정 처리
                     String role = parts[1];
                     if (role.equals("DRAWER")) {
                         ui.setGameRole(true, "★내가 출제자★ 제시어: " + parts[2]);
                     } else {
                         ui.setGameRole(false, "출제자: " + parts[2] + "님 (정답을 맞추세요!)");
                     }
+                } else if (command.equals("[GAME_OVER]")) {
+                    String winner = parts[1];
+                    String ranks = parts[2];
+                    ui.showFinalScoreDialog(winner, ranks);
                 }
             }
         } catch (Exception e) {
