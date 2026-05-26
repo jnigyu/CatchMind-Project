@@ -53,7 +53,6 @@ public class ClientMain {
                     int x2 = Integer.parseInt(parts[3]);
                     int y2 = Integer.parseInt(parts[4]);
                     String color = parts[5];
-                    // 💡 6번째 데이터인 두께(Thickness) 파싱 추가
                     int thickness = Integer.parseInt(parts[6]); 
                     ui.drawRemoteLine(x1, y1, x2, y2, color, thickness);
                     
@@ -77,9 +76,11 @@ public class ClientMain {
                 } else if (command.equals("[GAME_START]")) {
                     String role = parts[1];
                     if (role.equals("DRAWER")) {
-                        ui.setGameRole(true, "★내가 출제자★ 제시어: " + parts[2]);
+                        // 💡 출제자로 뽑혔을 때: 일단 결정 중이라고 띄우고, 직접 단어를 묻는 팝업을 켬!
+                        ui.setGameRole(true, "★내가 출제자★ (제시어 결정 중...)");
+                        ui.promptForWord(); 
                     } else {
-                        ui.setGameRole(false, "출제자: " + parts[2] + "님 (정답을 맞추세요!)");
+                        ui.setGameRole(false, "출제자: " + parts[2] + "님 (제시어 결정 중...)");
                     }
                 } else if (command.equals("[GAME_OVER]")) {
                     String winner = parts[1];

@@ -11,8 +11,6 @@ public class ClientHandler implements Runnable {
     private String nickname;     
     private boolean isReady = false; 
     private int score = 0; 
-    
-    // 💡 출제자 여부를 기억하는 변수
     private boolean isDrawer = false; 
 
     public ClientHandler(Socket socket, ServerMain server) {
@@ -25,8 +23,6 @@ public class ClientHandler implements Runnable {
     public String getNickname() { return nickname; }
     public int getScore() { return score; }
     public void setScore(int score) { this.score = score; }
-    
-    // 💡 출제자 권한 세팅 메서드
     public void setDrawer(boolean drawer) { this.isDrawer = drawer; }
 
     @Override
@@ -54,12 +50,21 @@ public class ClientHandler implements Runnable {
                         break;
 
                     case "[START]": 
-                        server.broadcast("[SYSTEM],게임을 시작합니다!");
+                        server.broadcast("[SYSTEM],게임을 시작합니다! 출제자 선정을 진행합니다...");
                         server.startGame();
                         break;
                         
+                    // 💡 출제자가 입력한 직접 제시어를 수신하는 기능
+                    case "[SET_WORD]":
+                        if (this.isDrawer) {
+                            server.currentAnswer = parts[1];
+                            server.isGameStarted = true; // 정답이 세팅되었으니 진짜 게임 시작!
+                            server.broadcast("[SYSTEM],🎨 출제자가 제시어를 결정했습니다! (제한시간 60초) 정답을 맞춰보세요!");
+                            server.startTimer(); // 여기서 타이머 시작
+                        }
+                        break;
+
                     case "[CHAT]": 
-                        // 💡 보안 로직: 만약 이 채팅을 보낸 사람이 출제자라면 무시하고 경고만 줌
                         if (this.isDrawer) {
                             sendMessage("[SYSTEM],🚫 출제자는 그림으로만 설명해야 합니다! (채팅 금지)");
                             break; 
@@ -69,7 +74,6 @@ public class ClientHandler implements Runnable {
                         if (server.isGameStarted && chatMsg.trim().equals(server.currentAnswer)) {
                             server.stopTimer(); 
                             this.score++; 
-                            
                             server.broadcast("[SYSTEM],🎉 정답! [" + nickname + "] 님이 맞췄습니다. (정답: " + server.currentAnswer + " | 점수: " + this.score + "점)");
                             
                             if (this.score >= 3) {
@@ -78,7 +82,7 @@ public class ClientHandler implements Runnable {
                                 server.broadcast("[GAME_OVER]," + nickname + "," + finalRank); 
                                 server.resetGameFull(); 
                             } else {
-                                server.startGame(); // 다음 문제 및 새로운 출제자/타이머 재가동
+                                server.startGame(); 
                                 server.broadcast("[CLEAR]"); 
                             }
                         } else {

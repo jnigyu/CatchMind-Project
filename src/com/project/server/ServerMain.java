@@ -12,20 +12,11 @@ public class ServerMain {
     private static final int PORT = 8000; 
     private List<ClientHandler> clients = new CopyOnWriteArrayList<>();
     
-    private String[] wordList = {"자전거", "사과", "노트북", "강아지", "기말고사", "교수님", "에이플러스", "커피", "와이파이", "키보드"};
     public String currentAnswer; 
     public boolean isGameStarted = false; 
     private Thread timerThread; 
 
-    public void setRandomAnswer() {
-        Random rand = new Random();
-        currentAnswer = wordList[rand.nextInt(wordList.length)];
-        System.out.println("🤫 (서버 관리자용) 이번 문제 정답: " + currentAnswer);
-    }
-
     public void start() {
-        setRandomAnswer(); 
-
         try (ServerSocket serverSocket = new ServerSocket(PORT)) {
             System.out.println("🚀 캐치마인드 서버가 " + PORT + " 포트에서 가동 중입니다!");
 
@@ -62,8 +53,7 @@ public class ServerMain {
 
     public void startGame() {
         if (clients.isEmpty()) return;
-        isGameStarted = true;
-        setRandomAnswer(); 
+        isGameStarted = false; // 💡 단어가 입력될 때까지 아직 게임 시작 안 한 상태로 대기
 
         Random rand = new Random();
         int drawerIndex = rand.nextInt(clients.size()); 
@@ -71,17 +61,15 @@ public class ServerMain {
         for (int i = 0; i < clients.size(); i++) {
             ClientHandler client = clients.get(i);
             if (i == drawerIndex) {
-                // 💡 서버 측 권한 부여: 출제자는 true
                 client.setDrawer(true); 
-                client.sendMessage("[GAME_START],DRAWER," + currentAnswer + "," + client.getNickname());
+                // 💡 단어를 아직 모르므로 닉네임만 전달
+                client.sendMessage("[GAME_START],DRAWER," + client.getNickname()); 
             } else {
-                // 💡 서버 측 권한 회수: 구경꾼은 false
                 client.setDrawer(false); 
                 client.sendMessage("[GAME_START],VIEWER," + clients.get(drawerIndex).getNickname());
             }
         }
-        
-        startTimer(); 
+        // 💡 타이머는 여기서 시작하지 않고, ClientHandler에서 [SET_WORD]를 받으면 시작합니다!
     }
 
     public void startTimer() {
@@ -122,10 +110,11 @@ public class ServerMain {
     public void resetGameFull() {
         stopTimer();
         isGameStarted = false;
+        currentAnswer = null; // 정답 초기화
         for (ClientHandler client : clients) {
             client.setReady(false);
             client.setScore(0); 
-            client.setDrawer(false); // 💡 게임이 끝나면 모두 출제자 권한 박탈 (채팅 허용)
+            client.setDrawer(false); 
         }
         checkAllReady();
         broadcast("[RESET_READY]");
