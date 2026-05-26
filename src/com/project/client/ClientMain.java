@@ -76,9 +76,8 @@ public class ClientMain {
                 } else if (command.equals("[GAME_START]")) {
                     String role = parts[1];
                     if (role.equals("DRAWER")) {
-                        // 💡 출제자로 뽑혔을 때: 일단 결정 중이라고 띄우고, 직접 단어를 묻는 팝업을 켬!
+                        // 💡 팝업창을 호출하던 코드를 지우고 UI 내부 로직으로 위임합니다.
                         ui.setGameRole(true, "★내가 출제자★ (제시어 결정 중...)");
-                        ui.promptForWord(); 
                     } else {
                         ui.setGameRole(false, "출제자: " + parts[2] + "님 (제시어 결정 중...)");
                     }

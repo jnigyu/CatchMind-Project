@@ -53,6 +53,9 @@ public class UiMain {
     private int savedReady = 0;            
     private int savedTotal = 0;            
 
+    // 💡 제시어 입력 단계인지를 판별하는 제어 플래그 변수 추가
+    private boolean isWordSettingPhase = false; 
+
     private final Color neonBlue = new Color(0, 180, 216);      
     private final Color darkBg = new Color(30, 31, 34);         
     private final Color toolbarBg = new Color(43, 45, 49);      
@@ -260,8 +263,22 @@ public class UiMain {
                 ipField.setEnabled(false); 
                 readyStartBtn.setEnabled(true); 
             } else {
-                client.sendMessage("[CHAT]," + text);
-                inputField.setText("");
+                // 💡 만약 현재 제시어를 직접 정하는 단계라면?
+                if (isWordSettingPhase) {
+                    client.sendMessage("[SET_WORD]," + text); // 서버로 정답 세팅 신호 전송
+                    isWordSettingPhase = false; // 단어 설정 단계 종료
+                    
+                    inputField.setEnabled(false); // 💡 입력창 즉시 잠금 처리
+                    inputField.setText("출제자 채팅금지");
+                    frame.setTitle("실시간 캐치마인드 - ★내가 출제자★ 제시어: " + text);
+                    
+                    // 내 채팅창에만 비밀스럽게 입력 완료 상태를 출력
+                    appendChat("🔒 제시어가 [" + text + "](으)로 설정되었습니다. 다른 사람에게 말하지 마세요!");
+                } else {
+                    // 평소에는 일반 실시간 채팅으로 전송
+                    client.sendMessage("[CHAT]," + text);
+                    inputField.setText("");
+                }
             }
         };
         inputField.addActionListener(connectionAction);
@@ -319,6 +336,7 @@ public class UiMain {
     public void resetReadyState() {
         amIReady = false;
         isDrawer = false;
+        isWordSettingPhase = false; // 플래그 초기화
         readyStartBtn.setText("준비 (0/0)");
         timerLabel.setText("대기 중.. ");
         frame.setTitle("실시간 캐치마인드 - 대기실");
@@ -345,30 +363,20 @@ public class UiMain {
         frame.setTitle("실시간 캐치마인드 - " + titleMessage);
         
         if (drawerMode) {
-            inputField.setEnabled(false);
-            inputField.setText("출제자 채팅금지"); 
+            // 💡 출제자라면 처음에는 입력창을 열어주고 단어 입력 페이즈 플래그를 켭니다.
+            isWordSettingPhase = true; 
+            inputField.setEnabled(true);
+            inputField.setText("");
+            
+            // 💡 오직 나에게만 비밀 메시지를 출력합니다.
+            appendChat("💬 [SYSTEM] 정답을 정해주세요! 입력창에 단어를 적고 엔터나 전송을 누르세요. (다른 사람에게는 보이지 않습니다.)");
         } else {
+            isWordSettingPhase = false;
             inputField.setEnabled(true);
             inputField.setText("");
         }
         
         clearCanvas(); 
-    }
-
-    // 💡 출제자로 뽑혔을 때 직접 제시어를 입력받아 서버로 쏘는 팝업 기능!
-    public void promptForWord() {
-        String word = null;
-        // 빈칸이나 취소를 방지하기 위해 제대로 입력할 때까지 반복
-        while (word == null || word.trim().isEmpty()) {
-            word = JOptionPane.showInputDialog(frame, "🎨 어떤 제시어로 문제를 내시겠습니까?", "제시어 직접 입력", JOptionPane.QUESTION_MESSAGE);
-            // 만약 취소를 누르거나 X창을 닫으면 기본값 처리 (게임 멈춤 방지)
-            if (word == null) {
-                word = "자유주제";
-            }
-        }
-        // 입력받은 단어를 통신 엔진을 통해 서버로 발송
-        client.sendMessage("[SET_WORD]," + word.trim());
-        frame.setTitle("실시간 캐치마인드 - ★내가 출제자★ 제시어: " + word.trim());
     }
 
     public void drawRemoteLine(int x1, int y1, int x2, int y2, String colorName, int thickness) {
