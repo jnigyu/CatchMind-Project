@@ -58,8 +58,8 @@ public class UiMain {
 
     private final Color neonBlue = new Color(0, 180, 216);      
     private final Color darkBg = new Color(30, 31, 34);         
-    private final Color toolbarBg = new Color(43, 45, 49);      
-    private final Color cyberGreen = new Color(0, 245, 150);    
+    private final Color toolbarBg = new Color(43, 45, 49);
+    private final Color cyberGreen = new Color(0, 245, 150);
 
     private final int VIRTUAL_WIDTH = 800;
     private final int VIRTUAL_HEIGHT = 500;
